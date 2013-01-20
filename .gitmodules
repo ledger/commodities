@@ -1,0 +1,3 @@
+[submodule "vendor/linear"]
+	path = vendor/linear
+	url = git://github.com/ekmett/linear

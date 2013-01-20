@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Ledger.Amount where
+module Data.Commodity.Amount where
 
 import Control.Applicative
 import Data.Ratio
