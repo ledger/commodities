@@ -4,20 +4,9 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE ExistentialQuantification #-}
------------------------------------------------------------------------------
--- |
--- Module      :  Linear.Sparse
--- Copyright   :  (C) 2013 John Wiegley,
---                (C) 2012-2013 Edward Kmett
--- License     :  BSD-style (see the file LICENSE)
---
--- Maintainer  :  John Wiegley <johnw@fpcomplete.com>,
---                Edward Kmett <ekmett@gmail.com>
--- Stability   :  experimental
--- Portability :  non-portable
---
--- Representation and operations on sparse vector spaces and matrices
-----------------------------------------------------------------------------
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE BangPatterns #-}
+
 module Data.Commodity.Types where
 
 import Control.Applicative
@@ -28,7 +17,9 @@ import Data.Data
 import Data.Distributive
 import Data.Foldable as Foldable
 import Data.Functor.Bind as Bind
+import Data.Functor.Representable as Repr
 import Data.IntMap as IntMap
+import Data.Key
 import Data.Monoid
 import Data.Traversable as Traversable
 import Linear.Vector
@@ -36,7 +27,7 @@ import Linear.Vector
 nullCommodity = 0
 
 data Balance a = Zero
-               | Amount Int a
+               | Amount IntMap.Key a
                | Balance (IntMap (Balance a))
                deriving (Typeable, Data)
 
@@ -81,7 +72,7 @@ instance Additive Balance where
 
 instance Functor Balance where
     fmap f Zero         = Zero
-    fmap f (Amount i a) = Amount i (f a)
+    fmap f (Amount c x) = Amount c (f x)
     fmap f (Balance xs) = Balance (fmap (fmap f) xs)
 
 instance Applicative Balance where
@@ -103,25 +94,73 @@ instance Apply Balance where
 
 instance Bind Balance where
     Zero >>- _       = Zero
-    Amount c q >>- f = f q
+    Amount _ q >>- f = f q
     Balance xs >>- f = Balance (fmap (>>- f) xs)
+
+instance Monad Balance where
+    return = pure
+    (>>=) = (>>-)
+
+type instance Data.Key.Key Balance = IntMap.Key
+
+instance Lookup Balance where
+    lookup k Zero = Nothing
+    lookup k (Amount c x) = if k == c then Just x else Nothing
+    lookup k (Balance xs) = case IntMap.lookup k xs of
+        Nothing -> Nothing
+        Just x  -> Data.Key.lookup k x
+
+instance Data.Key.Indexable Balance where
+    index Zero k = error "Key not in zero Balance"
+    index (Amount c x) k = if c == k
+                           then x
+                           else error "Key not in zero Balance"
+    index (Balance xs) k = index (index xs k) k
+
+-- type instance Data.Key.Key IntMap = IntMap.Key
+
+-- instance Repr.Representable IntMap where
+--     tabulate f = IntMap.fromList (Prelude.map (\x -> (x,f x)) [0..])
+
+instance Repr.Representable Balance where
+    tabulate f = Balance (tabulate (\k -> Amount k (f k)))
+
+-- instance At Int Balance where
+--   at k = indexed $ \f m ->
+--     let mv = Data.Key.lookup k m
+--         go Nothing   = maybe m (const (IntMap.delete k m)) mv
+--         go (Just v') = IntMap.insert k v' m
+--     in go <$> f k mv where
+--   {-# INLINE at #-}
+--   _at k = indexed $ \f m -> case IntMap.lookup k m of
+--      Just v -> f k v <&> \v' -> IntMap.insert k v' m
+--      Nothing -> pure m
+--   {-# INLINE _at #-}
+
+-- instance Adjustable Balance where
+--     adjust f k x = x & at k.mapped %~ f
+
+-- instance Store Balance where
+--     extract (Amount _ x) = x
+--     extract (Amount _ x) = x
+--     (>>=) = (>>-)
 
 instance Foldable Balance where
     foldMap f Zero         = mempty
-    foldMap f (Amount i a) = f a
+    foldMap f (Amount _ x) = f x
     foldMap f (Balance xs) = foldMap (foldMap f) xs
 
-    foldr f x Zero         = x
-    foldr f x (Amount i a) = f a x
-    foldr f x (Balance xs) = Foldable.foldr (flip (Foldable.foldr f)) x xs
+    foldr f z Zero         = z
+    foldr f z (Amount _ x) = f x z
+    foldr f z (Balance xs) = Foldable.foldr (flip (Foldable.foldr f)) z xs
 
 instance Traversable Balance where
     traverse f Zero         = pure Zero
-    traverse f (Amount i a) = fmap (Amount i) (f a)
+    traverse f (Amount c x) = fmap (Amount c) (f x)
     traverse f (Balance xs) = fmap Balance (traverse (traverse f) xs)
 
     sequenceA Zero         = pure Zero
-    sequenceA (Amount i a) = fmap (Amount i) a
+    sequenceA (Amount c x) = fmap (Amount c) x
     sequenceA (Balance xs) = fmap Balance (traverse sequenceA xs)
 
 instance Num a => Monoid (Balance a) where
