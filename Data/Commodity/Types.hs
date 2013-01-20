@@ -102,13 +102,9 @@ instance Apply Balance where
     (<.>) = (<*>)
 
 instance Bind Balance where
-    join Zero = Zero
-
-    join (Amount c Zero)           = Zero
-    join (Amount _ x@(Amount _ _)) = x
-    join (Amount _ x@(Balance _))  = x
-
-    join x@(Balance xs) = Foldable.foldr (^+^) Zero x
+    Zero >>- _       = Zero
+    Amount c q >>- f = f q
+    Balance xs >>- f = Balance (fmap (>>- f) xs)
 
 instance Foldable Balance where
     foldMap f Zero         = mempty
@@ -139,9 +135,9 @@ instance Num a => Monoid (Balance a) where
         | otherwise = Amount cx (qx + qy)
 
     mappend x@(Amount cx _) y@(Balance ys) =
-        Balance (IntMap.fromList [(cx,x)] <> ys)
+        Balance (IntMap.singleton cx x <> ys)
     mappend x@(Balance xs) y@(Amount cy _) =
-        Balance (xs <> IntMap.fromList [(cy,y)])
+        Balance (xs <> IntMap.singleton cy y)
 
     mappend (Balance xs) (Balance ys) = Balance (xs <> ys)
 
