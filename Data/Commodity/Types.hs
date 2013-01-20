@@ -26,8 +26,10 @@ import Linear.Vector
 
 nullCommodity = 0
 
+type CommodityIdx = IntMap.Key
+
 data Balance a = Zero
-               | Amount IntMap.Key a
+               | Amount CommodityIdx a
                | Balance (IntMap (Balance a))
                deriving (Typeable, Data)
 
