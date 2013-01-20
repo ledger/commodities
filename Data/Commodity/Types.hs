@@ -122,8 +122,8 @@ instance Data.Key.Indexable Balance where
 -- instance Repr.Representable IntMap where
 --     tabulate f = IntMap.fromList (Prelude.map (\x -> (x,f x)) [0..])
 
-instance Repr.Representable Balance where
-    tabulate f = Balance (tabulate (\k -> Amount k (f k)))
+-- instance Repr.Representable Balance where
+--     tabulate f = Balance (tabulate (\k -> Amount k (f k)))
 
 -- instance At Int Balance where
 --   at k = indexed $ \f m ->
