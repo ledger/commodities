@@ -101,7 +101,7 @@ instance Applicative Balance where
 instance Apply Balance where
     (<.>) = (<*>)
 
-instance Additive Balance => Bind Balance where
+instance Bind Balance where
     join Zero = Zero
 
     join (Amount c Zero)           = Zero
