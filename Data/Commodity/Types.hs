@@ -10,6 +10,7 @@
 module Data.Commodity.Types where
 
 import Control.Applicative
+import Control.Comonad.Trans.Store
 import Control.DeepSeq
 import Control.Lens
 import Control.Monad (join)
@@ -49,7 +50,7 @@ instance Additive Balance where
 
     x@(Amount cx _) ^+^ Balance ys =
         Balance (ys & at cx.non Zero %~ (^+^ x))
-    x@(Balance xs) ^+^ y@(Amount cy _) =
+    Balance xs ^+^ y@(Amount cy _) =
         Balance (xs & at cy.non Zero %~ (^+^ y))
 
     x@(Balance _) ^+^ Balance ys = Balance (fmap (x ^+^) ys)
@@ -64,9 +65,9 @@ instance Additive Balance where
         | cx /= cy   = Balance (fromList [(cx,x), (cy,Zero ^-^ y)])
         | otherwise = Amount cx (qx - qy)
 
-    x@(Amount cx qx) ^-^ y@(Balance ys) =
+    x@(Amount cx qx) ^-^ Balance ys =
         Balance (fmap (Zero ^-^) ys & at cx.non Zero %~ (^+^ x))
-    x@(Balance xs) ^-^ y@(Amount cy qy) =
+    Balance xs ^-^ y@(Amount cy qy) =
         Balance (xs & at cy.non Zero %~ (^-^ y))
 
     x@(Balance _) ^-^ Balance ys = Balance (fmap (x ^-^) ys)
@@ -192,6 +193,8 @@ instance (NFData a) => NFData (Balance a) where
     rnf Zero         = ()
     rnf (Amount c q) = rnf c `seq` rnf q `seq` ()
     rnf (Balance bs) = rnf bs `seq` ()
+
+balanceStore k x = store (index x) k
 
 sum :: Num a => [Balance a] -> Balance a
 sum = Foldable.foldr (^+^) Zero
